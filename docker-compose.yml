@@ -1,0 +1,62 @@
+name: resumeiq-clean
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: resumeiq
+      POSTGRES_USER: resumeiq
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-resumeiq-local-only}
+    ports:
+      - "55432:5432"
+    volumes:
+      - resumeiq_clean_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resumeiq -d resumeiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://resumeiq:${POSTGRES_PASSWORD:-resumeiq-local-only}@db:5432/resumeiq
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080
+      RESUME_STORAGE_DIR: /app/storage/resumes
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-15}
+      OCR_ENABLED: ${OCR_ENABLED:-false}
+      TESSERACT_CMD: /usr/bin/tesseract
+      AUTO_CREATE_SCHEMA: ${AUTO_CREATE_SCHEMA:-true}
+      SECRET_KEY: ${SECRET_KEY:-local-development-only-change-me}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      USE_TRAINED_MODEL: ${USE_TRAINED_MODEL:-false}
+    volumes:
+      - resumeiq_clean_resumes:/app/storage/resumes
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  resumeiq_clean_pgdata:
+  resumeiq_clean_resumes:

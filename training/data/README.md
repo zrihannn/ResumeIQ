@@ -1,0 +1,1 @@
+`labeled_match_pairs.template.csv` is a header-only template. Create `labeled_match_pairs.csv` with human-reviewed candidate/job pairs. The actual labelled dataset is intentionally not fabricated or shipped with the project.

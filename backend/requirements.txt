@@ -1,0 +1,14 @@
+fastapi>=0.128,<1.0
+uvicorn>=0.40,<1.0
+sqlalchemy>=2.0.52,<3.0
+psycopg[binary]>=3.3.6,<4.0
+pydantic>=2.14,<3.0
+python-dotenv>=1.2,<2.0
+python-multipart>=0.0.20,<1.0
+# PyMuPDF 1.26.x uses the stable CPython ABI and has no mandatory ONNX Runtime dependency.
+# Do not replace with PyMuPDF 2.x unless the ONNX Runtime Windows/Python wheel matrix is verified.
+pymupdf==1.26.7
+python-docx>=1.2,<2.0
+scikit-learn>=1.9.1,<2.0
+numpy>=2.5.4,<3.0
+alembic>=1.16,<2.0
