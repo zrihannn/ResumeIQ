@@ -1,4 +1,4 @@
-# ResumeIQ 2.2 — Talent Intelligence & Recruitment Operations
+# ResumeIQ — Talent Intelligence & Recruitment Operations
 
 ResumeIQ is a local-first recruitment workspace for structured resume parsing, candidate review, job management, explainable matching, applications, interviews and recruitment analytics.
 
