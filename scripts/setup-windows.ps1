@@ -36,7 +36,7 @@ if (Test-Path $PythonExe) {
         throw 'The configured Python interpreter was not found. Install the interpreter required by the project and rerun setup.'
     }
     if (-not $PythonVersion.StartsWith('3.14.')) {
-        throw "Expected Python 3.14.x, found $PythonVersion."
+        throw "The selected Python interpreter is not compatible with the project configuration."
     }
 }
 Write-Host "Using the configured Python interpreter" -ForegroundColor Green
