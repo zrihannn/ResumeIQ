@@ -52,8 +52,17 @@ def test_candidate_correction_and_delete(client):
     assert updated.status_code == 200
     assert updated.json()["headline"] == "Senior Python Engineer"
     assert updated.json()["extraction_quality"]["manually_reviewed"] is True
-    assert client.delete(f"/api/candidates/{candidate_id}").status_code == 200
+    deleted = client.delete(f"/api/candidates/{candidate_id}")
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["deleted"] is True
+    assert deleted.json()["candidate_id"] == candidate_id
     assert client.get(f"/api/candidates/{candidate_id}").status_code == 404
+
+    from pathlib import Path
+    from app.core.config import settings
+
+    storage_files = [path for path in Path(settings.resume_storage_dir).rglob("*") if path.is_file()]
+    assert storage_files == []
 
 
 def test_matching_and_application_pipeline(client):
