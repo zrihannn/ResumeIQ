@@ -21,40 +21,13 @@ This archive is a clean development baseline. It is not a claim of production ce
 
 The interface uses the **Oxblood Chrome** design system: graphite surfaces, oxblood/ruby actions, titanium typography, steel-blue and muted secondary accents, spacious editorial layouts and restrained motion.
 
-## Tested local toolchain target
+## Local setup prerequisites
 
-Use the installed versions you reported:
-
-| Tool | Local version | ResumeIQ selection |
-|---|---:|---|
-| Windows | Windows 11 x64 | Windows PowerShell |
-| Python | 3.15.0 | Keep installed; not selected for this project |
-| Python | 3.14.8 | **Selected for ResumeIQ** |
-| pip | 26.3 | Upgrade via the project setup script |
-| Node.js | 24.19.0 | Frontend runtime |
-| npm | 12.2.1 | Frontend packages |
-| Git | 2.55.0.windows.5 | Version control; no GitHub publishing is performed by setup |
-| Docker | 29.7.2 | PostgreSQL and full-stack containers |
-| Docker Compose | 5.5.0 | Local services |
-| VS Code | 1.145.2 | Recommended editor |
-
-### Why Python 3.14.8 for this project?
-
-The previous installation selected PyMuPDF 2.x, which pulled ONNX Runtime into the PDF dependency chain. ONNX Runtime does not yet publish a compatible Windows wheel for the user's Python 3.15 environment. This rebuild pins **PyMuPDF 1.26.7**, which has Windows `abi3` wheels, requires Python 3.10 or later and has no mandatory ONNX Runtime dependency. We still select Python 3.14.8 because PyMuPDF 1.26.x documents support through Python 3.14. This avoids relying on an unverified Python 3.15 combination.
-
-Sources: [PyMuPDF 1.26.7 on PyPI](https://pypi.org/project/pymupdf/1.26.7/) · [PyMuPDF installation documentation](https://pymupdf.readthedocs.io/en/latest/installation.html) · [ONNX Runtime wheel files](https://pypi.org/project/onnxruntime/)
-
-Do not replace the PyMuPDF pin with `pymupdf>=2.1` or add `pymupdf-layout` without checking the ONNX Runtime wheel matrix first.
+The recommended local workflow uses the included setup scripts. A Windows environment with PowerShell, the required development runtimes, and Docker Desktop is supported.
 
 ## Windows setup — recommended
 
-Extract this archive into a **new folder** so the earlier prototype and its virtual environments are not mixed with this rebuild. Suggested path:
-
-```text
-C:\Users\ray\Downloads\ResumeIQ-Clean
-```
-
-Open this folder in VS Code. In the integrated PowerShell terminal, run the one-time setup script:
+Extract the project into a clean directory. Run the one-time setup script from a PowerShell terminal opened at the project root:
 
 ```powershell
 .\scripts\setup-windows.ps1
@@ -62,8 +35,8 @@ Open this folder in VS Code. In the integrated PowerShell terminal, run the one-
 
 The script:
 
-1. Verifies Python 3.14, Node.js, npm and Docker are available.
-2. Creates `backend\.venv` with Python 3.14.
+1. Checks that the required development runtimes and tools are available.
+2. Creates the backend virtual environment.
 3. Installs backend runtime and test dependencies.
 4. Runs `pip check` and the backend test suite.
 5. Creates `.env` from `.env.example` only if `.env` does not already exist.
@@ -108,39 +81,6 @@ To stop development, close the backend and frontend PowerShell windows, then fro
 
 This runs `docker compose down` without deleting persistent data.
 
-## Manual Windows setup (alternative)
-
-From the project root, create `.env` once:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Start PostgreSQL:
-
-```powershell
-docker compose up -d db
-```
-
-Backend terminal:
-
-```powershell
-cd backend
-py -3.14 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-python -m uvicorn app.main:app --reload
-```
-
-Frontend terminal:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
 ## Full-stack Docker option
 
 Create `.env` from `.env.example` if it does not exist, then from the project root:
@@ -149,7 +89,7 @@ Create `.env` from `.env.example` if it does not exist, then from the project ro
 docker compose up --build
 ```
 
-Open <http://localhost:8080>. The API is available at <http://localhost:8000>. Docker builds use Python 3.14 and install the same pinned PyMuPDF 1.26.7 dependency family.
+Open <http://localhost:8080>. The API is available at <http://localhost:8000>. Docker builds install the backend runtime and dependencies from the project configuration.
 
 Stop without deleting persistent data:
 
@@ -218,7 +158,7 @@ The default runtime uses the explainable hybrid baseline. It does not require a 
 
    ```powershell
    cd training
-   py -3.14 -m venv .venv
+   python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    python -m pip install --upgrade pip
    python -m pip install -r requirements.txt
@@ -229,7 +169,7 @@ The trainer requires at least 50 reviewed pairs and 10 distinct candidate groups
 
 ## Licensing and release status
 
-Review [`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md) before choosing a project license or distributing a public/commercial release. PyMuPDF 1.26.7 is available under AGPL v3 or a separate commercial license; this choice matters for distribution.
+Review [`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md) before choosing a project license or distributing a public or commercial release. PyMuPDF is available under AGPL v3 or a separate commercial license; this choice matters for distribution.
 
 ## GitHub status
 
