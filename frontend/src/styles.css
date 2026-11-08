@@ -115,6 +115,9 @@ a { color: inherit; text-decoration: none; }
 .button-primary:hover { transform: translateY(-1px); box-shadow: 0 9px 24px rgba(114,34,59,.29), inset 0 1px 0 rgba(255,255,255,.2); }
 .button-secondary { background: #1C1F27; border: 1px solid var(--line-2); color: #D3D5DD; }
 .button-secondary:hover { border-color: rgba(193,93,118,.34); background: #24232B; }
+.button-secondary.button-danger { border-color: rgba(224,96,115,.28); color: #E58B9B; background: rgba(170,53,74,.08); }
+.button-secondary.button-danger:hover { border-color: rgba(224,96,115,.58); color: #FFC0CA; background: rgba(170,53,74,.16); }
+.application-danger-zone > p { margin: -4px 0 13px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .button-small { min-height: 30px; padding: 0 10px; border: 1px solid var(--line-2); background: rgba(255,255,255,.025); color: #C8CBD4; font-size: 10px; }
 .button-small:hover { border-color: rgba(193,93,118,.34); background: rgba(193,93,118,.08); }
 .button-primary.wide, .button-secondary.wide { width: 100%; }
