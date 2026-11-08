@@ -4,7 +4,7 @@ This document is a starting point for release review, not legal advice.
 
 ## Important dependency notice
 
-ResumeIQ currently uses PyMuPDF 1.26.7 for PDF text extraction and rendering. PyMuPDF is offered under the GNU AGPL v3 or a separate commercial license by Artifex. Before distributing ResumeIQ as a proprietary/commercial service or publishing a differently licensed combined distribution, review the PyMuPDF license terms and obtain legal advice or the appropriate commercial license where required.
+ResumeIQ uses PyMuPDF for PDF text extraction and rendering. PyMuPDF is offered under the GNU AGPL v3 or a separate commercial license by Artifex. Before distributing ResumeIQ as a proprietary/commercial service or publishing a differently licensed combined distribution, review the PyMuPDF license terms and obtain legal advice or the appropriate commercial license where required.
 
 Official references:
 
