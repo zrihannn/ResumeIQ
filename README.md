@@ -98,6 +98,8 @@ URLs:
 
 The database uses host port **55432** deliberately, to avoid colliding with the earlier prototype or another local PostgreSQL service on port 5432.
 
+The Docker-published ports are bound to `127.0.0.1` by default so the unauthenticated local-development workspace is not exposed to other devices on the network. The Vite development and preview servers also bind to loopback. Do not change these bindings for a shared or public deployment without first enabling authentication and completing the security checklist.
+
 To stop development, close the backend and frontend PowerShell windows, then from the project root run:
 
 ```powershell

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlalchemy import desc, func, or_, text
+from sqlalchemy import desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -61,15 +61,6 @@ def _job_profile(job: Job) -> dict:
 
 def _safe_name(filename: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", Path(filename).name)[:180] or "resume"
-
-
-@router.get("/health")
-def health(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="Database connection is unavailable.") from exc
-    return {"status": "ok", "service": "ResumeIQ API", "database": "ok", "parser_version": PARSER_VERSION, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/dashboard")
@@ -199,6 +190,14 @@ def update_candidate(candidate_id: int, payload: CandidateUpdate, db: Session = 
     if not candidate:
         raise HTTPException(404, "Candidate not found.")
     changes = payload.model_dump(exclude_unset=True)
+    requested_email = changes.get("email")
+    if requested_email:
+        duplicate = db.query(Candidate).filter(
+            func.lower(Candidate.email) == requested_email,
+            Candidate.id != candidate.id,
+        ).first()
+        if duplicate:
+            raise HTTPException(409, "Another candidate already uses this email address.")
     for field, value in changes.items():
         if value is not None:
             setattr(candidate, field, value)

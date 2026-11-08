@@ -16,6 +16,7 @@
 ## Important current limitations
 
 - Authentication is optional and disabled by default for a local-only developer workspace.
+- Docker-published ports and Vite development/preview servers bind to loopback by default; changing those bindings exposes the workspace to other devices and requires authentication plus a deployment security review.
 - Access tokens are stored in browser localStorage. This is acceptable for local development but increases exposure if an XSS vulnerability is introduced. A hardened deployment should use short-lived access tokens, refresh-token rotation and a secure HttpOnly cookie/BFF pattern.
 - Multi-tenant isolation is not implemented. The current database is a single workspace; do not expose it to multiple unrelated organizations.
 - Resume files are stored on a private local Docker volume. Encryption at rest, malware scanning, antivirus scanning and object-store lifecycle rules are not implemented in this foundation.

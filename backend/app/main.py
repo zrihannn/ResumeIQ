@@ -1,12 +1,18 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.api.auth import router as auth_router
 from app.core.config import settings
-from app.db.session import Base, engine, SessionLocal
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import Base, engine, SessionLocal, get_db
 from app.core.security import hash_password
 from app.models import entities
+from app.services.parser import PARSER_VERSION
 
 
 @asynccontextmanager
@@ -48,5 +54,23 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.get("/api/health", tags=["Health"])
+def health(db: Session = Depends(get_db)):
+    """Unauthenticated liveness/readiness endpoint for local and container health checks."""
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database connection is unavailable.") from exc
+    return {
+        "status": "ok",
+        "service": "ResumeIQ API",
+        "database": "ok",
+        "parser_version": PARSER_VERSION,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 app.include_router(auth_router)
 app.include_router(router)

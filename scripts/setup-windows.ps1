@@ -83,7 +83,7 @@ try {
 Write-Host 'Installing frontend dependencies...' -ForegroundColor Cyan
 Push-Location $Frontend
 try {
-    & npm install --no-audit --no-fund
+    & npm ci --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw 'Frontend npm install failed.' }
     & npm run build
     if ($LASTEXITCODE -ne 0) { throw 'Frontend production build failed.' }

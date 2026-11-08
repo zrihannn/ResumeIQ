@@ -38,6 +38,7 @@ class Candidate(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     documents: Mapped[list[ResumeDocument]] = relationship(back_populates="candidate", cascade="all, delete-orphan")
     applications: Mapped[list[Application]] = relationship(back_populates="candidate", cascade="all, delete-orphan")
+    matches: Mapped[list[MatchResult]] = relationship(back_populates="candidate", cascade="all, delete-orphan")
 
 
 class ResumeDocument(Base):
@@ -78,6 +79,7 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     applications: Mapped[list[Application]] = relationship(back_populates="job", cascade="all, delete-orphan")
+    matches: Mapped[list[MatchResult]] = relationship(back_populates="job", cascade="all, delete-orphan")
 
 
 class Application(Base):
@@ -102,6 +104,8 @@ class MatchResult(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    candidate: Mapped[Candidate] = relationship(back_populates="matches")
+    job: Mapped[Job] = relationship(back_populates="matches")
     overall_score: Mapped[float] = mapped_column(Float)
     component_scores: Mapped[dict] = mapped_column(JSON, default=dict)
     matched_skills: Mapped[list] = mapped_column(JSON, default=list)

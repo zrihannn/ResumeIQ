@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+import re
 from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
@@ -60,6 +61,16 @@ class CandidateUpdate(BaseModel):
     languages: list[dict] | None = None
     volunteering: list[dict] | None = None
     links: dict[str, str] | None = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().lower()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", normalized):
+            raise ValueError("Enter a valid email address.")
+        return normalized
 
 
 ApplicationStage = Literal["new", "screening", "interview", "offer", "hired", "rejected"]

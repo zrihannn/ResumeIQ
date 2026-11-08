@@ -112,3 +112,62 @@ def test_upload_rejects_corrupt_pdf_with_validation_error(client):
     )
     assert response.status_code == 422
     assert "PDF could not be read" in response.json()["detail"]
+
+
+def test_health_remains_available_when_authentication_is_enabled(client):
+    from app.core.config import settings
+
+    previous = settings.auth_enabled
+    settings.auth_enabled = True
+    try:
+        response = client.get("/api/health")
+        assert response.status_code == 200, response.text
+        assert response.json()["database"] == "ok"
+        assert client.get("/api/dashboard").status_code == 401
+    finally:
+        settings.auth_enabled = previous
+
+
+def test_deleting_candidate_or_job_cascades_match_results(client):
+    candidate = upload(client).json()["candidate"]
+    job = create_job(client).json()
+    run = client.post(f"/api/matches/jobs/{job['id']}/run")
+    assert run.status_code == 200, run.text
+    assert len(run.json()["results"]) == 1
+
+    deleted_candidate = client.delete(f"/api/candidates/{candidate['id']}")
+    assert deleted_candidate.status_code == 200, deleted_candidate.text
+    assert client.get(f"/api/matches/jobs/{job['id']}").json() == []
+
+    second_candidate = upload(client, "Jordan Lee", "jordan.lee@example.com").json()["candidate"]
+    second_run = client.post(f"/api/matches/jobs/{job['id']}/run")
+    assert second_run.status_code == 200, second_run.text
+    deleted_job = client.delete(f"/api/jobs/{job['id']}")
+    assert deleted_job.status_code == 200, deleted_job.text
+    assert client.get(f"/api/candidates/{second_candidate['id']}").status_code == 200
+
+    from app.models.entities import MatchResult
+    db = client.test_db()
+    try:
+        assert db.query(MatchResult).count() == 0
+    finally:
+        db.close()
+
+
+def test_candidate_email_correction_is_normalized_and_deduplicated(client):
+    first = upload(client).json()["candidate"]
+    second = upload(client, "Jordan Lee", "jordan.lee@example.com").json()["candidate"]
+
+    duplicate = client.patch(
+        f"/api/candidates/{second['id']}",
+        json={"email": " ALEX.MORGAN@EXAMPLE.COM "},
+    )
+    assert duplicate.status_code == 409
+
+    invalid = client.patch(f"/api/candidates/{second['id']}", json={"email": "not-an-email"})
+    assert invalid.status_code == 422
+
+    updated = client.patch(f"/api/candidates/{second['id']}", json={"email": "  JORDAN.NEW@EXAMPLE.COM  "})
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["email"] == "jordan.new@example.com"
+    assert client.get(f"/api/candidates/{first['id']}").status_code == 200
