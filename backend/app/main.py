@@ -13,6 +13,7 @@ from app.db.session import Base, engine, SessionLocal, get_db
 from app.core.security import hash_password
 from app.models import entities
 from app.services.parser import PARSER_VERSION
+from app.services.resume_storage import check_resume_storage
 
 
 @asynccontextmanager
@@ -64,10 +65,15 @@ def health(db: Session = Depends(get_db)):
         db.execute(text("SELECT 1"))
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Database connection is unavailable.") from exc
+    try:
+        check_resume_storage()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Resume storage connection is unavailable.") from exc
     return {
         "status": "ok",
         "service": "ResumeIQ API",
         "database": "ok",
+        "storage": "ok",
         "parser_version": PARSER_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
