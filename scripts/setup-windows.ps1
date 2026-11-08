@@ -10,10 +10,10 @@ function Require-Command([string]$Name, [string]$Hint) {
     }
 }
 
-Write-Host "ResumeIQ 2.2 setup" -ForegroundColor Cyan
+Write-Host "ResumeIQ setup" -ForegroundColor Cyan
 Write-Host "Project: $Root"
 
-Require-Command 'node' 'Install Node.js 24.19.0 or another supported Node 24 release.'
+Require-Command 'node' 'Install a supported Node.js release.'
 Require-Command 'npm' 'Install npm with Node.js.'
 Require-Command 'docker' 'Install Docker Desktop and start the Docker Engine.'
 
@@ -30,25 +30,25 @@ if (Test-Path $PythonExe) {
     if (Test-Path $Venv) {
         throw "backend\.venv exists but its Python executable is missing. Remove only '$Venv' after confirming it is safe, then rerun setup."
     }
-    Require-Command 'py' 'Install the Python launcher and Python 3.14.8.'
+    Require-Command 'py' 'Install the Python launcher and the interpreter required by the project.'
     $PythonVersion = & py -3.14 -c "import sys; print('.'.join(map(str, sys.version_info[:3])))"
     if ($LASTEXITCODE -ne 0) {
-        throw 'Python 3.14 was not found. This project uses Python 3.14.8 because the selected PyMuPDF build is officially supported through Python 3.14.'
+        throw 'The configured Python interpreter was not found. Install the interpreter required by the project and rerun setup.'
     }
     if (-not $PythonVersion.StartsWith('3.14.')) {
         throw "Expected Python 3.14.x, found $PythonVersion."
     }
 }
-Write-Host "Using Python $PythonVersion" -ForegroundColor Green
+Write-Host "Using the configured Python interpreter" -ForegroundColor Green
 
 $NodeVersion = (& node --version).Trim().TrimStart('v')
 $NodeParts = $NodeVersion.Split('.')
 $NodeMajor = [int]$NodeParts[0]
 $NodeMinor = [int]$NodeParts[1]
 if (-not (($NodeMajor -eq 20 -and $NodeMinor -ge 19) -or ($NodeMajor -eq 22 -and $NodeMinor -ge 12) -or ($NodeMajor -gt 22))) {
-    throw "Node.js $NodeVersion is not supported by this Vite setup. Use Node 24.19.0 from this PC inventory."
+    throw "The installed Node.js release is not supported by this frontend setup. Install a supported Node.js release and rerun setup."
 }
-Write-Host "Using Node.js $NodeVersion" -ForegroundColor Green
+Write-Host "Using a supported Node.js runtime" -ForegroundColor Green
 
 $EnvFile = Join-Path $Root '.env'
 if (-not (Test-Path $EnvFile)) {
