@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import mimetypes
 import re
 import secrets
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy import desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -20,9 +21,12 @@ from app.db.session import get_db
 from app.models.entities import ActivityEvent, Application, Candidate, Interview, Job, MatchResult, ResumeDocument, User
 from app.schemas.dto import ApplicationCreate, ApplicationUpdate, CandidateUpdate, InterviewCreate, InterviewUpdate, JobCreate, JobUpdate
 from app.services.document_reader import read_document
+from app.services.resume_storage import delete_resume, read_resume, save_resume
 from app.services.matcher import calculate_match
 from app.services.parser import PARSER_VERSION, parse_resume
 from app.services.serializers import activity_out, application_out, candidate_out, document_out, interview_out, job_out, match_out
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth_guard)])
 PIPELINE_STAGES = ["new", "screening", "interview", "offer", "hired", "rejected"]
@@ -144,10 +148,10 @@ async def upload_candidate(file: UploadFile = File(...), db: Session = Depends(g
         volunteering=parsed.get("volunteering", []), links=identity.get("links", {}), extraction_quality=parsed.get("quality", {}),
     )
     stored_filename = f"{secrets.token_hex(18)}{Path(filename).suffix.lower()}"
-    settings.resume_storage_dir.mkdir(parents=True, exist_ok=True)
-    stored_path = settings.resume_storage_dir / stored_filename
+    stored = False
     try:
-        stored_path.write_bytes(content)
+        save_resume(stored_filename, content, content_type)
+        stored = True
         db.add(candidate)
         db.flush()
         document = ResumeDocument(
@@ -165,11 +169,19 @@ async def upload_candidate(file: UploadFile = File(...), db: Session = Depends(g
         db.refresh(document)
     except IntegrityError as exc:
         db.rollback()
-        stored_path.unlink(missing_ok=True)
+        if stored:
+            try:
+                delete_resume(stored_filename)
+            except Exception:
+                logger.exception("Could not remove orphaned resume object after database conflict.")
         raise HTTPException(409, "This resume conflicts with an existing candidate or document record.") from exc
     except Exception:
         db.rollback()
-        stored_path.unlink(missing_ok=True)
+        if stored:
+            try:
+                delete_resume(stored_filename)
+            except Exception:
+                logger.exception("Could not remove orphaned resume object after upload failure.")
         raise
     return {"candidate": candidate_out(candidate), "document": document_out(document), "parsed_profile": parsed, "warnings": document.warnings or []}
 
@@ -226,10 +238,15 @@ def download_document(document_id: int, db: Session = Depends(get_db)):
     document = db.get(ResumeDocument, document_id)
     if not document:
         raise HTTPException(404, "Resume document not found.")
-    path = settings.resume_storage_dir / document.stored_filename
-    if not path.is_file():
+    content = read_resume(document.stored_filename)
+    if content is None:
         raise HTTPException(404, "The stored resume file is missing.")
-    return FileResponse(path, media_type=document.content_type, filename=document.original_filename)
+    safe_filename = _safe_name(document.original_filename)
+    return Response(
+        content=content,
+        media_type=document.content_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
+    )
 
 
 @router.delete("/candidates/{candidate_id}")
@@ -237,13 +254,16 @@ def delete_candidate(candidate_id: int, db: Session = Depends(get_db), _actor=De
     candidate = db.query(Candidate).options(joinedload(Candidate.documents)).filter(Candidate.id == candidate_id).first()
     if not candidate:
         raise HTTPException(404, "Candidate not found.")
-    files = [settings.resume_storage_dir / item.stored_filename for item in candidate.documents]
+    stored_keys = [item.stored_filename for item in candidate.documents]
     name = candidate.full_name
     log_event(db, "candidate", candidate.id, "candidate_deleted", f"Deleted candidate profile: {name}.", {"document_count": len(files)}, _actor)
     db.delete(candidate)
     db.commit()
-    for path in files:
-        path.unlink(missing_ok=True)
+    for stored_key in stored_keys:
+        try:
+            delete_resume(stored_key)
+        except Exception:
+            logger.exception("Could not delete resume object %s after candidate deletion.", stored_key)
     return {"deleted": True, "candidate_id": candidate_id, "candidate_name": name}
 
 
