@@ -26,7 +26,8 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("BOOTSTRAP_ADMIN_PASSWORD must contain at least 12 characters.")
     if settings.auto_create_schema:
         Base.metadata.create_all(bind=engine)
-    settings.resume_storage_dir.mkdir(parents=True, exist_ok=True)
+    if settings.resume_storage_backend == "local":
+        settings.resume_storage_dir.mkdir(parents=True, exist_ok=True)
     if settings.auth_enabled:
         with SessionLocal() as db:
             from app.models.entities import User
