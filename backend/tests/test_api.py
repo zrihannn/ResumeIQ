@@ -123,6 +123,7 @@ def test_health_remains_available_when_authentication_is_enabled(client):
         response = client.get("/api/health")
         assert response.status_code == 200, response.text
         assert response.json()["database"] == "ok"
+        assert response.json()["storage"] == "ok"
         assert client.get("/api/dashboard").status_code == 401
     finally:
         settings.auth_enabled = previous
