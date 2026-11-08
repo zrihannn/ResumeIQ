@@ -256,7 +256,7 @@ def delete_candidate(candidate_id: int, db: Session = Depends(get_db), _actor=De
         raise HTTPException(404, "Candidate not found.")
     stored_keys = [item.stored_filename for item in candidate.documents]
     name = candidate.full_name
-    log_event(db, "candidate", candidate.id, "candidate_deleted", f"Deleted candidate profile: {name}.", {"document_count": len(files)}, _actor)
+    log_event(db, "candidate", candidate.id, "candidate_deleted", f"Deleted candidate profile: {name}.", {"document_count": len(stored_keys)}, _actor)
     db.delete(candidate)
     db.commit()
     for stored_key in stored_keys:
