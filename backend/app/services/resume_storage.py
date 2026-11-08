@@ -68,3 +68,11 @@ def delete_resume(key: str) -> None:
         _s3_client().delete_object(Bucket=settings.resume_storage_bucket, Key=key)
         return
     (settings.resume_storage_dir / key).unlink(missing_ok=True)
+
+
+
+def check_resume_storage() -> None:
+    if _uses_s3():
+        _s3_client().list_objects_v2(Bucket=settings.resume_storage_bucket, MaxKeys=1)
+        return
+    settings.resume_storage_dir.mkdir(parents=True, exist_ok=True)
