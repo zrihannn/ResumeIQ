@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://resumeiq-api-ray-b2e0.vercel.app/api/:path*"
+    }
+  ]
+}
