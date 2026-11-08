@@ -60,7 +60,7 @@ After setup completes:
 .\scripts\start-windows.ps1
 ```
 
-This starts the PostgreSQL container, opens separate PowerShell windows for FastAPI and Vite, and opens the frontend in your browser.
+This starts the PostgreSQL container, launches FastAPI and Vite in separate PowerShell windows, and opens the frontend at its local address.
 
 URLs:
 
@@ -97,7 +97,7 @@ Stop without deleting persistent data:
 docker compose down
 ```
 
-**Do not run `docker compose down -v` unless you intentionally want to delete the new database and resume-storage volumes.**
+**The `docker compose down -v` command permanently deletes the database and resume-storage volumes.**
 
 ## OCR for scanned PDFs
 
