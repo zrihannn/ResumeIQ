@@ -191,28 +191,33 @@ function App() {
   if (auth.required) return <LoginScreen onLogin={handleLogin} />
 
   const pageTitle = NAV.find(item => item.id === page)?.label || 'Overview'
+  const role = auth.user?.role || 'admin'
+  const canManageRoles = !auth.enabled || ['admin', 'recruiter'].includes(role)
+  const canReviewWorkflow = !auth.enabled || ['admin', 'recruiter', 'reviewer'].includes(role)
+  const canManageUsers = auth.enabled && role === 'admin'
+  const showSettings = !auth.enabled || canManageUsers
 
   return <div className="app-shell">
     <input ref={fileInput} type="file" multiple accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={onUpload} />
-    <Sidebar page={page} setPage={setPage} counts={{ candidates: dashboard?.total_candidates || 0, jobs: dashboard?.open_jobs || 0 }} onUpload={onPickFile} />
+    <Sidebar page={page} setPage={setPage} counts={{ candidates: dashboard?.total_candidates || 0, jobs: dashboard?.open_jobs || 0 }} onUpload={onPickFile} user={auth.user} canUpload={canManageRoles} showSettings={showSettings} />
     <main className="main-shell">
       <Topbar pageTitle={pageTitle} date={date} health={health} refreshing={refreshing} onRefresh={() => refresh()} onHelp={() => setModal({ type: 'help' })} user={auth.user} onLogout={handleLogout} />
       {error && <div className="connection-banner"><CircleAlert size={16}/><span>{error}</span><button onClick={() => refresh()}>Retry connection</button></div>}
       {uploadProgress && <div className="upload-progress-banner"><div className="upload-progress-copy"><strong>Indexing resumes</strong><span>{uploadProgress.completed} of {uploadProgress.total} · {uploadProgress.current}</span></div><div className="upload-progress-track"><i style={{ width: `${uploadProgress.completed / uploadProgress.total * 100}%` }}/></div></div>}
       {loading ? <LoadingState /> : <div className="page-content">
-        {page === 'overview' && <OverviewPage dashboard={dashboard} jobs={jobs} applications={applications} onNavigate={setPage} onUpload={onPickFile} onCreateJob={() => setModal({ type: 'job' })} onOpenCandidate={async id => { const data = await api.candidate(id); setSelectedCandidate(data) }} />}
-        {page === 'candidates' && <CandidatesPage candidates={candidates} jobs={jobs} onUpload={onPickFile} onOpen={async id => { const data = await api.candidate(id); setSelectedCandidate(data) }} onDelete={id => act(() => api.deleteCandidate(id), 'Candidate deleted.')} onCreateApplication={data => setModal({ type: 'application', candidateId: data.id })} />}
-        {page === 'jobs' && <JobsPage jobs={jobs} applications={applications} onCreate={() => setModal({ type: 'job' })} onUpdate={(id, data) => act(() => api.updateJob(id, data), 'Role updated.')} onDelete={id => act(() => api.deleteJob(id), 'Role deleted.')} onNavigate={setPage} />}
-        {page === 'applications' && <ApplicationsPage applications={applications} onUpdate={(id, data) => act(() => api.updateApplication(id, data), 'Application updated.')} onOpen={item => setSelectedApplication(item)} onCreate={() => setModal({ type: 'application' })} />}
-        {page === 'interviews' && <InterviewsPage interviews={interviews} applications={applications} onCreate={() => setModal({ type: 'interview' })} onUpdate={(id, data) => act(() => api.updateInterview(id, data), 'Interview updated.')} />}
-        {page === 'matching' && <MatchingPage jobs={jobs} applications={applications} onCreateApplication={data => act(() => api.createApplication(data), 'Candidate added to the pipeline.')} />}
+        {page === 'overview' && <OverviewPage dashboard={dashboard} jobs={jobs} applications={applications} onNavigate={setPage} onUpload={onPickFile} onCreateJob={() => setModal({ type: 'job' })} onOpenCandidate={async id => { const data = await api.candidate(id); setSelectedCandidate(data) }} canManage={canManageRoles} canReview={canReviewWorkflow} />}
+        {page === 'candidates' && <CandidatesPage candidates={candidates} jobs={jobs} onUpload={onPickFile} onOpen={async id => { const data = await api.candidate(id); setSelectedCandidate(data) }} onDelete={id => act(() => api.deleteCandidate(id), 'Candidate deleted.')} onCreateApplication={data => setModal({ type: 'application', candidateId: data.id })} canManage={canManageRoles} canReview={canReviewWorkflow} />}
+        {page === 'jobs' && <JobsPage jobs={jobs} applications={applications} onCreate={() => setModal({ type: 'job' })} onUpdate={(id, data) => act(() => api.updateJob(id, data), 'Role updated.')} onDelete={id => act(() => api.deleteJob(id), 'Role deleted.')} onNavigate={setPage} canManage={canManageRoles} />}
+        {page === 'applications' && <ApplicationsPage applications={applications} onUpdate={(id, data) => act(() => api.updateApplication(id, data), 'Application updated.')} onOpen={item => setSelectedApplication(item)} onCreate={() => setModal({ type: 'application' })} canEdit={canReviewWorkflow} />}
+        {page === 'interviews' && <InterviewsPage interviews={interviews} applications={applications} onCreate={() => setModal({ type: 'interview' })} onUpdate={(id, data) => act(() => api.updateInterview(id, data), 'Interview updated.')} canEdit={canReviewWorkflow} />}
+        {page === 'matching' && <MatchingPage jobs={jobs} applications={applications} onCreateApplication={data => act(() => api.createApplication(data), 'Candidate added to the pipeline.')} canEdit={canReviewWorkflow} />}
         {page === 'analytics' && <AnalyticsPage dashboard={dashboard} applications={applications} jobs={jobs} interviews={interviews} />}
-        {page === 'settings' && <SettingsPage health={health} onRefresh={() => refresh()} />}
+        {page === 'settings' && showSettings && <SettingsPage health={health} onRefresh={() => refresh()} user={auth.user} />}
       </div>}
     </main>
     <AnimateToast toast={toast} />
-    {selectedCandidate && <CandidateDrawer data={selectedCandidate} onClose={() => setSelectedCandidate(null)} onSave={async (id, data) => { await act(() => api.updateCandidate(id, data), 'Candidate profile saved.'); const fresh = await api.candidate(id); setSelectedCandidate(fresh) }} onApplication={candidate => { setSelectedCandidate(null); setModal({ type: 'application', candidateId: candidate.id }) }} />}
-    {selectedApplication && <ApplicationDrawer item={selectedApplication} interviews={interviews.filter(i => i.application_id === selectedApplication.id)} onClose={() => setSelectedApplication(null)} onSave={async (id, data) => { await act(() => api.updateApplication(id, data), 'Application updated.'); setSelectedApplication(null) }} onSchedule={() => { setSelectedApplication(null); setModal({ type: 'interview', applicationId: selectedApplication.id }) }} onDelete={async id => { await act(() => api.deleteApplication(id), 'Application deleted.'); setSelectedApplication(null) }} />}
+    {selectedCandidate && <CandidateDrawer data={selectedCandidate} onClose={() => setSelectedCandidate(null)} onSave={async (id, data) => { await act(() => api.updateCandidate(id, data), 'Candidate profile saved.'); const fresh = await api.candidate(id); setSelectedCandidate(fresh) }} onApplication={candidate => { setSelectedCandidate(null); setModal({ type: 'application', candidateId: candidate.id }) }} canManage={canManageRoles} canReview={canReviewWorkflow} />}
+    {selectedApplication && <ApplicationDrawer item={selectedApplication} interviews={interviews.filter(i => i.application_id === selectedApplication.id)} onClose={() => setSelectedApplication(null)} onSave={async (id, data) => { await act(() => api.updateApplication(id, data), 'Application updated.'); setSelectedApplication(null) }} onSchedule={() => { setSelectedApplication(null); setModal({ type: 'interview', applicationId: selectedApplication.id }) }} onDelete={async id => { await act(() => api.deleteApplication(id), 'Application deleted.'); setSelectedApplication(null) }} canEdit={canReviewWorkflow} canDelete={canManageRoles} />}
     {modal && <ModalHost modal={modal} onClose={() => setModal(null)} candidates={candidates} jobs={jobs} applications={applications} onCreateJob={data => act(() => api.createJob(data), 'Role created.')} onCreateApplication={data => act(() => api.createApplication(data), 'Application added to pipeline.')} onCreateInterview={data => act(() => api.createInterview(data), 'Interview scheduled.')} />}
   </div>
 }
