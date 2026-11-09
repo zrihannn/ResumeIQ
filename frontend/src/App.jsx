@@ -484,12 +484,61 @@ function AnalyticsPage({ dashboard, applications, jobs, interviews }) {
   </>
 }
 
-function SettingsPage({ health, onRefresh }) {
+function SettingsPage({ health, onRefresh, user }) {
   return <>
-    <PageHeading eyebrow="MANAGE / WORKSPACE" title="A considered setup." description="Workspace health, parser configuration and the current system boundaries." actions={<button className="button-secondary" onClick={onRefresh}><RefreshCw size={15}/> Check health</button>}/>
-    <div className="settings-grid"><div className="panel settings-main"><div className="panel-heading"><div><div className="section-label">SYSTEM STATUS</div><h2>Services & connectivity</h2><p>Current status reported by the backend.</p></div><span className={`api-status ${health ? 'online' : 'offline'}`}><i/>{health ? 'Operational' : 'Unavailable'}</span></div><div className="service-row"><div className="service-icon"><Code2 size={18}/></div><div><strong>ResumeIQ API</strong><span>{health?.service || 'FastAPI service'}</span></div><b>{health?.status || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><Layers3 size={18}/></div><div><strong>Database</strong><span>Persistent candidate and workflow records</span></div><b>{health?.database || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><FileSearch size={18}/></div><div><strong>Resume parser</strong><span>PDF + DOCX · version {health?.parser_version || '2.2.0'}</span></div><b>Ready</b></div><div className="service-row"><div className="service-icon"><BrainCircuit size={18}/></div><div><strong>Matching engine</strong><span>TF-IDF relevance + skills + experience + education</span></div><b>Baseline</b></div></div><div className="panel settings-side"><div className="section-label">DOCUMENT PROCESSING</div><h2>Parser boundaries</h2><p>Text-based PDFs and DOCX documents are supported. OCR is optional and requires Tesseract to be installed and enabled.</p><div className="setting-line"><span>Maximum upload</span><strong>15 MB</strong></div><div className="setting-line"><span>Supported formats</span><strong>PDF · DOCX</strong></div><div className="setting-line"><span>OCR</span><strong>Optional</strong></div><div className="setting-line"><span>Field evidence</span><strong>Enabled</strong></div></div></div>
-    <div className="panel security-note"><div className="security-icon"><ShieldCheck size={20}/></div><div><strong>Development workspace</strong><p>This build is intended for local development with synthetic or consented test resumes. Before using real candidate data in a shared deployment, enable authentication and role-based access, configure encrypted private storage, set a strong secret, add malware scanning, retention controls and audit access policies.</p></div></div>
+    <PageHeading eyebrow="MANAGE / WORKSPACE" title="Workspace settings." description="Service health, document processing and access management." actions={<button className="button-secondary" onClick={onRefresh}><RefreshCw size={15}/> Check health</button>}/>
+    <div className="settings-grid"><div className="panel settings-main"><div className="panel-heading"><div><div className="section-label">SYSTEM STATUS</div><h2>Services & connectivity</h2><p>Current status reported by the backend.</p></div><span className={`api-status ${health ? 'online' : 'offline'}`}><i/>{health ? 'Operational' : 'Unavailable'}</span></div><div className="service-row"><div className="service-icon"><Code2 size={18}/></div><div><strong>ResumeIQ API</strong><span>{health?.service || 'FastAPI service'}</span></div><b>{health?.status || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><Layers3 size={18}/></div><div><strong>Database</strong><span>Persistent candidate and workflow records</span></div><b>{health?.database || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><FileSearch size={18}/></div><div><strong>Resume parser</strong><span>PDF and DOCX document processing</span></div><b>Ready</b></div><div className="service-row"><div className="service-icon"><BrainCircuit size={18}/></div><div><strong>Matching engine</strong><span>Skills, text relevance, experience and education</span></div><b>Ready</b></div></div><div className="panel settings-side"><div className="section-label">DOCUMENT PROCESSING</div><h2>Parser boundaries</h2><p>Text-based PDFs and DOCX documents are supported. OCR is optional and requires Tesseract to be installed and enabled.</p><div className="setting-line"><span>Maximum upload</span><strong>Configured limit</strong></div><div className="setting-line"><span>Supported formats</span><strong>PDF · DOCX</strong></div><div className="setting-line"><span>OCR</span><strong>Optional</strong></div><div className="setting-line"><span>Field evidence</span><strong>Enabled</strong></div></div></div>
+    {user?.role === 'admin' && <WorkspaceUsers/>}
+    <div className="panel security-note"><div className="security-icon"><ShieldCheck size={20}/></div><div><strong>Access and candidate privacy</strong><p>Viewer accounts can inspect candidate profiles, resume files, role requirements, applications, recruiter notes and interview feedback. They cannot create, edit or delete workspace records. Grant viewer access only to trusted people who are permitted to see this information.</p></div></div>
   </>
+}
+
+function WorkspaceUsers() {
+  const [users, setUsers] = useState([])
+  const [form, setForm] = useState({ display_name: '', email: '', password: '', role: 'viewer' })
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const loadUsers = async () => {
+    setLoadingUsers(true)
+    try { setUsers(await api.users()); setError('') }
+    catch (err) { setError(err.message || 'Could not load workspace accounts.') }
+    finally { setLoadingUsers(false) }
+  }
+  useEffect(() => { loadUsers() }, [])
+  const update = event => setForm(value => ({ ...value, [event.target.name]: event.target.value }))
+  const submit = async event => {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const created = await api.createUser(form)
+      setMessage(`${created.display_name} can now sign in as a ${created.role}. Share the initial password securely; no invitation email is sent.`)
+      setForm({ display_name: '', email: '', password: '', role: 'viewer' })
+      await loadUsers()
+    } catch (err) {
+      setError(err.message || 'Could not create the workspace account.')
+    } finally { setBusy(false) }
+  }
+  const roleLabel = role => ({ admin: 'Administrator', recruiter: 'Recruiter', reviewer: 'Reviewer', viewer: 'Viewer' }[role] || role)
+  return <section className="panel workspace-users-panel">
+    <div className="panel-heading"><div><div className="section-label">ACCESS / TEAM MEMBERS</div><h2>Workspace accounts</h2><p>Create accounts and assign the access level required for each person.</p></div><span className="result-count">{users.length} accounts</span></div>
+    <div className="viewer-access-warning"><ShieldCheck size={17}/><div><strong>Viewer access is read-only</strong><p>Viewers can inspect roles, candidates, applications, interview schedules, recruiter notes and feedback. They cannot change records or manage accounts.</p></div></div>
+    <form className="form-grid workspace-user-form" onSubmit={submit}>
+      <Field label="Display name"><input name="display_name" value={form.display_name} onChange={update} required minLength="2" maxLength="180" placeholder="e.g. Alex Morgan"/></Field>
+      <Field label="Work email"><input type="email" name="email" value={form.email} onChange={update} required maxLength="254" placeholder="alex@company.com"/></Field>
+      <Field label="Initial password"><input type="password" name="password" value={form.password} onChange={update} required minLength="12" maxLength="200" autoComplete="new-password" placeholder="At least 12 characters"/></Field>
+      <Field label="Access level"><select name="role" value={form.role} onChange={update}><option value="viewer">Viewer · Read-only</option><option value="reviewer">Reviewer · Application workflow</option><option value="recruiter">Recruiter · Workspace operations</option></select></Field>
+      <div className="workspace-user-form-foot"><span>Share the initial password through a separate secure channel. Password recovery is not configured.</span><button className="button-primary" disabled={busy}>{busy ? 'Creating account...' : 'Create account'} <Plus size={15}/></button></div>
+    </form>
+    {error && <div className="inline-error"><CircleAlert size={15}/>{error}</div>}
+    {message && <div className="inline-success"><CheckCircle2 size={15}/>{message}</div>}
+    <div className="workspace-user-list"><div className="workspace-user-list-head"><strong>Current accounts</strong><button className="text-action" type="button" onClick={loadUsers}><RefreshCw size={13}/> Refresh</button></div>
+      {loadingUsers ? <div className="muted-empty">Loading workspace accounts...</div> : users.length ? users.map(item => <div className="workspace-user-row" key={item.id}><div className="user-avatar">{initials(item.display_name || item.email)}</div><div className="workspace-user-copy"><strong>{item.display_name}</strong><span>{item.email}</span></div><span className={`role-pill role-${item.role}`}>{roleLabel(item.role)}</span><span className={`account-status ${item.is_active ? 'active' : 'inactive'}`}>{item.is_active ? 'Active' : 'Disabled'}</span></div>) : <div className="muted-empty">No workspace accounts were found.</div>}
+    </div>
+  </section>
 }
 
 function MiniStat({ label, value, icon: Icon }) {
