@@ -93,6 +93,10 @@ function App() {
             const session = await api.me()
             if (cancelled) return
             setAuth({ checking: false, enabled: true, required: false, user: session.user })
+            if (!['admin', 'recruiter', 'reviewer', 'viewer'].includes(session.user?.role)) {
+              setLoading(false)
+              return
+            }
           } catch {
             api.logout()
             if (cancelled) return
