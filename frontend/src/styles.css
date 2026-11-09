@@ -649,3 +649,108 @@ kbd { padding: 2px 5px; border: 1px solid var(--line-2); color: #747A87; border-
 .upload-progress-copy span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-progress-track { height: 5px; background: var(--line-strong); border-radius: 99px; overflow: hidden; }
 .upload-progress-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--oxblood), var(--ruby), var(--chrome)); transition: width .22s ease; }
+
+
+/* Workspace access and read-only viewer states */
+.access-pill, .role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgba(193,93,118,.24);
+  border-radius: 999px;
+  color: #D7A7B2;
+  background: rgba(193,93,118,.07);
+  font: 8px 'DM Mono', monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.read-only-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #D6D8DF;
+  background: rgba(255,255,255,.025);
+  font-size: 10px;
+}
+.read-only-stage .stage-dot { height: 7px; width: 7px; border-radius: 50%; }
+.read-only-callout {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #9DA3B0;
+  background: rgba(255,255,255,.025);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.viewer-access-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid rgba(193,93,118,.2);
+  border-radius: 9px;
+  background: rgba(193,93,118,.055);
+}
+.viewer-access-warning > svg { flex: 0 0 auto; color: #C98C9B; }
+.viewer-access-warning strong { display: block; color: #E0C4CA; font-size: 10px; }
+.viewer-access-warning p { margin: 5px 0 0; color: #9B929B; font-size: 9px; line-height: 1.65; }
+.workspace-users-panel { padding: 22px; margin-top: 15px; }
+.workspace-users-panel > .panel-heading { align-items: center; margin-bottom: 16px; }
+.workspace-user-form { margin-top: 15px; }
+.workspace-user-form-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.workspace-user-form-foot > span { max-width: 440px; color: #888E9A; font-size: 9px; line-height: 1.6; }
+.workspace-user-list { margin-top: 22px; border-top: 1px solid var(--line); }
+.workspace-user-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 5px; }
+.workspace-user-list-head > strong { font-size: 10px; }
+.workspace-user-row {
+  display: grid;
+  grid-template-columns: 34px minmax(140px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-user-row .user-avatar { width: 32px; height: 32px; font-size: 10px; }
+.workspace-user-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.workspace-user-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.workspace-user-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #868C99; font-size: 9px; }
+.role-pill.role-admin { color: #E5B6C0; border-color: rgba(193,93,118,.32); }
+.role-pill.role-recruiter { color: #B5C5DA; border-color: rgba(115,151,190,.27); }
+.role-pill.role-reviewer { color: #C8B9DC; border-color: rgba(155,126,190,.27); }
+.role-pill.role-viewer { color: #A9C9BA; border-color: rgba(118,164,139,.27); }
+.account-status { color: #89909B; font: 8px 'DM Mono', monospace; text-transform: uppercase; }
+.account-status.active { color: #91BDA6; }
+.account-status.inactive { color: #D08A91; }
+.inline-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(118,164,139,.24);
+  border-radius: 8px;
+  color: #A8D1BB;
+  background: rgba(67,127,93,.1);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.inline-success svg { flex: 0 0 auto; }
+@media (max-width: 700px) {
+  .workspace-user-form-foot { align-items: stretch; flex-direction: column; }
+  .workspace-user-form-foot .button-primary { width: 100%; }
+  .workspace-user-row { grid-template-columns: 32px minmax(0, 1fr) auto; }
+  .workspace-user-row .account-status { grid-column: 2 / -1; }
+}
