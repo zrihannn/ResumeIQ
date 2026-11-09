@@ -236,12 +236,15 @@ function LoginScreen({ onLogin }) {
     setBusy(true); setError('')
     try { await onLogin(email, password) } catch (err) { setError(err.message || 'Could not sign in.') } finally { setBusy(false) }
   }
-  return <div className="login-screen"><div className="login-card"><div className="brand-lockup"><div className="brand-symbol"><span>R</span><i/></div><div><div className="brand-name">resume<span>iq</span></div><div className="brand-descriptor">TALENT INTELLIGENCE</div></div></div><div className="section-label">RECRUITER WORKSPACE</div><h1>Welcome back.</h1><p>Sign in to continue to your recruitment workspace.</p><form className="form-stack" onSubmit={submit}><Field label="Work email"><input type="email" autoComplete="username" value={email} onChange={event => setEmail(event.target.value)} required placeholder="you@company.com"/></Field><Field label="Password"><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required placeholder="Your password"/></Field>{error && <div className="inline-error"><CircleAlert size={15}/>{error}</div>}<button className="button-primary wide" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'} <ArrowRight size={15}/></button></form><span className="login-footnote"><ShieldCheck size={13}/> Workspace access is controlled by your administrator.</span></div></div>
+  return <div className="login-screen"><div className="login-card"><div className="brand-lockup"><div className="brand-symbol"><span>R</span><i/></div><div><div className="brand-name">resume<span>iq</span></div><div className="brand-descriptor">TALENT INTELLIGENCE</div></div></div><div className="section-label">WORKSPACE ACCESS</div><h1>Welcome back.</h1><p>Sign in to view your recruitment workspace.</p><form className="form-stack" onSubmit={submit}><Field label="Work email"><input type="email" autoComplete="username" value={email} onChange={event => setEmail(event.target.value)} required placeholder="you@company.com"/></Field><Field label="Password"><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required placeholder="Your password"/></Field>{error && <div className="inline-error"><CircleAlert size={15}/>{error}</div>}<button className="button-primary wide" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'} <ArrowRight size={15}/></button></form><span className="login-footnote"><ShieldCheck size={13}/> Read-only viewer accounts can access workspace records without editing them.</span></div></div>
 }
 
-function Sidebar({ page, setPage, counts, onUpload }) {
+function Sidebar({ page, setPage, counts, onUpload, user, canUpload, showSettings }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const groups = [...new Set(NAV.map(item => item.group))]
+  const visibleNav = NAV.filter(item => showSettings || item.id !== 'settings')
+  const groups = [...new Set(visibleNav.map(item => item.group))]
+  const userName = user?.display_name || user?.email || 'Recruitment Team'
+  const roleLabel = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)} access` : 'Local workspace'
   return <>
     <button className="mobile-sidebar-toggle" onClick={() => setMobileOpen(!mobileOpen)}><Menu size={19}/></button>
     <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
@@ -257,7 +260,7 @@ function Sidebar({ page, setPage, counts, onUpload }) {
       <nav className="sidebar-nav">
         {groups.map(group => <div className="nav-group" key={group}>
           <div className="nav-group-label">{group}</div>
-          {NAV.filter(item => item.group === group).map(item => {
+          {visibleNav.filter(item => item.group === group).map(item => {
             const Icon = item.icon
             const count = item.id === 'candidates' ? counts.candidates : item.id === 'jobs' ? counts.jobs : null
             return <button key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => { setPage(item.id); setMobileOpen(false) }}>
@@ -267,8 +270,8 @@ function Sidebar({ page, setPage, counts, onUpload }) {
         </div>)}
       </nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-cta"><div className="cta-icon"><Sparkles size={16}/></div><strong>Less sorting.<br/>More signal.</strong><p>One clear workspace for every candidate and role.</p><button onClick={onUpload}>Upload resumes <ArrowUpRight size={14}/></button></div>
-        <div className="sidebar-user"><div className="user-avatar">RT</div><div><strong>Recruitment Team</strong><span>Workspace admin</span></div><MoreHorizontal size={18}/></div>
+        {canUpload && <div className="sidebar-cta"><div className="cta-icon"><Sparkles size={16}/></div><strong>Less sorting.<br/>More signal.</strong><p>One clear workspace for every candidate and role.</p><button onClick={onUpload}>Upload resumes <ArrowUpRight size={14}/></button></div>}
+        <div className="sidebar-user"><div className="user-avatar">{initials(userName)}</div><div><strong>{userName}</strong><span>{roleLabel}</span></div><MoreHorizontal size={18}/></div>
       </div>
     </aside>
   </>
