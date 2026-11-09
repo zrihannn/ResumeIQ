@@ -415,23 +415,22 @@ function MatchingPage({ jobs, applications, onCreateApplication, canEdit }) {
   </>
 }
 
-function InterviewsPage({ interviews, applications, onCreate, onUpdate }) {
+function InterviewsPage({ interviews, applications, onCreate, onUpdate, canEdit }) {
   const [feedbackInterview, setFeedbackInterview] = useState(null)
   const upcoming = interviews.filter(item => item.status === 'scheduled' && new Date(item.scheduled_at) >= new Date()).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
   const completed = interviews.filter(item => item.status !== 'scheduled')
   return <>
-    <PageHeading eyebrow="WORKFLOW / INTERVIEW OPERATIONS" title="Make every conversation count." description="Keep interview plans, participants and feedback connected to the application." actions={<button className="button-primary" onClick={onCreate} disabled={!applications.length}><Plus size={16}/> Schedule interview</button>}/>
+    <PageHeading eyebrow="WORKFLOW / INTERVIEW OPERATIONS" title="Every conversation, connected." description="Review interview schedules, participants and feedback linked to each application." actions={canEdit ? <button className="button-primary" onClick={onCreate} disabled={!applications.length}><Plus size={16}/> Schedule interview</button> : <span className="access-pill">Read-only access</span>}/>
     <section className="stat-grid interview-stats"><MiniStat label="Upcoming" value={upcoming.length} icon={CalendarClock}/><MiniStat label="Completed" value={completed.filter(item => item.status === 'completed').length} icon={CheckCheck}/><MiniStat label="Applications" value={applications.length} icon={Users}/><MiniStat label="Scheduled next" value={upcoming[0] ? fmtDate(upcoming[0].scheduled_at, { day: '2-digit', month: 'short' }) : '—'} icon={Clock3}/></section>
     <div className="panel table-panel"><div className="table-headline"><div><span className="section-label">INTERVIEW CALENDAR</span><h2>Upcoming conversations <span>{upcoming.length}</span></h2></div></div>
-      {upcoming.length ? <div className="interview-list">{upcoming.map(item => <div className="interview-row" key={item.id}><div className="interview-date"><strong>{new Date(item.scheduled_at).getDate()}</strong><span>{new Date(item.scheduled_at).toLocaleDateString(undefined, { month: 'short' })}</span></div><div className="interview-primary"><strong>{item.title}</strong><span>{item.candidate_name} · {item.job_title}</span></div><div className="interview-kind"><span>{item.interview_type}</span><small>{fmtTime(item.scheduled_at)} · {item.duration_minutes} min</small></div><div className="interview-people">{item.interviewers?.slice(0, 2).map(name => <span key={name}>{initials(name)}</span>)}</div><button className="button-small" onClick={() => setFeedbackInterview(item)}>Add feedback</button></div>)}</div> : <EmptyState icon={CalendarClock} title="No interviews scheduled" text="Schedule a conversation from an application and keep the process connected." action={applications.length ? 'Schedule interview' : 'Add an application first'} onClick={applications.length ? onCreate : undefined}/>}
+      {upcoming.length ? <div className="interview-list">{upcoming.map(item => <div className="interview-row" key={item.id}><div className="interview-date"><strong>{new Date(item.scheduled_at).getDate()}</strong><span>{new Date(item.scheduled_at).toLocaleDateString(undefined, { month: 'short' })}</span></div><div className="interview-primary"><strong>{item.title}</strong><span>{item.candidate_name} · {item.job_title}</span></div><div className="interview-kind"><span>{item.interview_type}</span><small>{fmtTime(item.scheduled_at)} · {item.duration_minutes} min</small></div><div className="interview-people">{item.interviewers?.slice(0, 2).map(name => <span key={name}>{initials(name)}</span>)}</div>{canEdit && <button className="button-small" onClick={() => setFeedbackInterview(item)}>Add feedback</button>}</div>)}</div> : <EmptyState icon={CalendarClock} title="No interviews scheduled" text="Scheduled interviews will appear here once they are added to an application." action={canEdit && applications.length ? "Schedule interview" : undefined} onClick={canEdit && applications.length ? onCreate : undefined}/>}
     </div>
-    <div className="panel completed-panel"><div className="table-headline"><div><span className="section-label">HISTORY</span><h2>Past & completed</h2></div></div>{completed.length ? completed.map(item => <div className="completed-row" key={item.id}><span className={`status-dot ${item.status}`}/><strong>{item.candidate_name}</strong><span>{item.title}</span><small>{fmtDate(item.scheduled_at)}</small><button className="text-action" onClick={() => setFeedbackInterview(item)}>View feedback</button><button className="text-action" onClick={() => onUpdate(item.id, { status: 'scheduled' })}>Reopen</button></div>) : <div className="muted-empty">Completed interviews and scorecards will appear here.</div>}</div>
-    {feedbackInterview && <InterviewFeedbackModal item={feedbackInterview} onClose={() => setFeedbackInterview(null)} onSave={async data => { await onUpdate(feedbackInterview.id, data); setFeedbackInterview(null) }}/>}
+    <div className="panel completed-panel"><div className="table-headline"><div><span className="section-label">HISTORY</span><h2>Past & completed</h2></div></div>{completed.length ? completed.map(item => <div className="completed-row" key={item.id}><span className={`status-dot ${item.status}`}/><strong>{item.candidate_name}</strong><span>{item.title}</span><small>{fmtDate(item.scheduled_at)}</small>{(canEdit || item.scorecard || item.notes) && <button className="text-action" onClick={() => setFeedbackInterview(item)}>{canEdit ? 'View feedback' : 'View details'}</button>}{canEdit && <button className="text-action" onClick={() => onUpdate(item.id, { status: 'scheduled' })}>Reopen</button>}</div>) : <div className="muted-empty">Completed interviews and scorecards will appear here.</div>}</div>
+    {feedbackInterview && <InterviewFeedbackModal item={feedbackInterview} readOnly={!canEdit} onClose={() => setFeedbackInterview(null)} onSave={async data => { await onUpdate(feedbackInterview.id, data); setFeedbackInterview(null) }}/>}
   </>
 }
 
-
-function InterviewFeedbackModal({ item, onClose, onSave }) {
+function InterviewFeedbackModal({ item, onClose, onSave, readOnly = false }) {
   const existing = item.scorecard || {}
   const [form, setForm] = useState({
     technical: String(existing.technical ?? 3),
@@ -445,6 +444,7 @@ function InterviewFeedbackModal({ item, onClose, onSave }) {
   const update = event => setForm(value => ({ ...value, [event.target.name]: event.target.value }))
   const submit = async event => {
     event.preventDefault()
+    if (readOnly) return
     setBusy(true)
     try {
       const scorecard = {
@@ -460,14 +460,14 @@ function InterviewFeedbackModal({ item, onClose, onSave }) {
   return <Modal title="Interview feedback" subtitle={`${item.candidate_name} · ${item.job_title} · ${item.title}`} onClose={onClose}>
     <form className="form-stack" onSubmit={submit}>
       <div className="form-two">
-        <Field label="Technical depth (1–5)"><select name="technical" value={form.technical} onChange={update}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
-        <Field label="Problem solving (1–5)"><select name="problem_solving" value={form.problem_solving} onChange={update}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
-        <Field label="Communication (1–5)"><select name="communication" value={form.communication} onChange={update}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
-        <Field label="Overall assessment (1–5)"><select name="overall" value={form.overall} onChange={update}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
+        <Field label="Technical depth (1–5)"><select name="technical" value={form.technical} onChange={update} disabled={readOnly}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
+        <Field label="Problem solving (1–5)"><select name="problem_solving" value={form.problem_solving} onChange={update} disabled={readOnly}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
+        <Field label="Communication (1–5)"><select name="communication" value={form.communication} onChange={update} disabled={readOnly}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
+        <Field label="Overall assessment (1–5)"><select name="overall" value={form.overall} onChange={update} disabled={readOnly}>{[1,2,3,4,5].map(value => <option value={value} key={value}>{value} / 5</option>)}</select></Field>
       </div>
-      <Field label="Recommendation"><select name="recommendation" value={form.recommendation} onChange={update}><option value="strong_yes">Strong yes</option><option value="lean_yes">Lean yes</option><option value="undecided">Undecided</option><option value="lean_no">Lean no</option><option value="strong_no">Strong no</option></select></Field>
-      <Field label="Evidence and notes"><textarea name="notes" rows="5" value={form.notes} onChange={update} placeholder="Capture examples, evidence, strengths and follow-up areas..."/></Field>
-      <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Cancel</button><button className="button-primary" disabled={busy}>{busy ? 'Saving feedback...' : 'Save scorecard'} <Check size={15}/></button></div>
+      <Field label="Recommendation"><select name="recommendation" value={form.recommendation} onChange={update} disabled={readOnly}><option value="strong_yes">Strong yes</option><option value="lean_yes">Lean yes</option><option value="undecided">Undecided</option><option value="lean_no">Lean no</option><option value="strong_no">Strong no</option></select></Field>
+      <Field label="Evidence and notes"><textarea name="notes" rows="5" value={form.notes} onChange={update} disabled={readOnly} placeholder="No interview notes have been recorded."/></Field>
+      <div className="modal-actions">{readOnly ? <button type="button" className="button-secondary" onClick={onClose}>Close</button> : <><button type="button" className="button-secondary" onClick={onClose}>Cancel</button><button className="button-primary" disabled={busy}>{busy ? 'Saving feedback...' : 'Save scorecard'} <Check size={15}/></button></>}</div>
     </form>
   </Modal>
 }
