@@ -22,6 +22,7 @@ async function request(path, options = {}) {
 const json = (method, body) => ({ method, body: JSON.stringify(body) })
 export const api = {
   authStatus: () => request('/auth/status'),
+  registerCandidate: async (displayName, email, password) => { const result = await request('/auth/register', json('POST', { display_name: displayName, email, password })); localStorage.setItem('resumeiq_access_token', result.access_token); return result },
   me: () => request('/auth/me'),
   users: () => request('/auth/users'),
   createUser: (data) => request('/auth/users', json('POST', data)),
