@@ -11,6 +11,7 @@ def test_authentication_and_role_permissions(client):
         db.add_all([
             User(email="viewer@example.com", display_name="Read Only", password_hash=hash_password("viewer-password-123"), role="viewer"),
             User(email="recruiter@example.com", display_name="Recruiter", password_hash=hash_password("recruiter-password-123"), role="recruiter"),
+            User(email="admin@example.com", display_name="Workspace Admin", password_hash=hash_password("admin-password-123"), role="admin"),
         ])
         db.commit()
     finally:
@@ -25,9 +26,23 @@ def test_authentication_and_role_permissions(client):
         assert viewer_login.status_code == 200
         viewer_token = viewer_login.json()["access_token"]
         viewer_headers = {"Authorization": f"Bearer {viewer_token}"}
-        assert client.get("/api/jobs", headers=viewer_headers).status_code == 200
+        for path in ("/api/dashboard", "/api/candidates", "/api/jobs", "/api/applications", "/api/interviews", "/api/activity"):
+            assert client.get(path, headers=viewer_headers).status_code == 200
+
+        assert client.get("/api/auth/users", headers=viewer_headers).status_code == 403
+        assert client.post("/api/auth/users", headers=viewer_headers, json={
+            "email": "blocked@example.com", "display_name": "Blocked User",
+            "password": "blocked-password-123", "role": "viewer",
+        }).status_code == 403
+
         assert client.post("/api/jobs", headers=viewer_headers, json={
             "title": "Restricted role", "description": "A sufficiently long role description for permission testing."
+        }).status_code == 403
+        assert client.post("/api/applications", headers=viewer_headers, json={
+            "candidate_id": 1, "job_id": 1
+        }).status_code == 403
+        assert client.post("/api/interviews", headers=viewer_headers, json={
+            "application_id": 1, "title": "Restricted interview", "scheduled_at": "2026-11-10T10:00:00+05:30"
         }).status_code == 403
 
         recruiter_login = client.post("/api/auth/login", json={"email": "recruiter@example.com", "password": "recruiter-password-123"})
@@ -40,6 +55,27 @@ def test_authentication_and_role_permissions(client):
         activity = client.get("/api/activity", headers=recruiter_headers)
         assert activity.status_code == 200
         assert activity.json()[0]["actor_email"] == "recruiter@example.com"
+        assert client.get("/api/auth/users", headers=recruiter_headers).status_code == 403
+
+        admin_login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "admin-password-123"})
+        assert admin_login.status_code == 200
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        listed_users = client.get("/api/auth/users", headers=admin_headers)
+        assert listed_users.status_code == 200
+        assert {item["role"] for item in listed_users.json()} >= {"admin", "recruiter", "viewer"}
+
+        invited = client.post("/api/auth/users", headers=admin_headers, json={
+            "email": "observer@example.com",
+            "display_name": "Workspace Observer",
+            "password": "observer-password-123",
+            "role": "viewer",
+        })
+        assert invited.status_code == 201, invited.text
+        observer_login = client.post("/api/auth/login", json={
+            "email": "observer@example.com", "password": "observer-password-123"
+        })
+        assert observer_login.status_code == 200
+        assert observer_login.json()["user"]["role"] == "viewer"
     finally:
         settings.auth_enabled = previous
 
