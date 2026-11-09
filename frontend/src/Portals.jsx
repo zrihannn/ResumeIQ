@@ -153,7 +153,7 @@ function CandidatePortal({ user, onLogout }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [edit, setEdit] = useState({ full_name:'', phone:'', location:'', headline:'', summary:'', total_experience_years:'', skills:'' })
+  const [edit, setEdit] = useState({ full_name:'', phone:'', location:'', headline:'', summary:'', total_experience_years:'', skills:'', experience:'[]', education:'[]', projects:'[]', certifications:'[]', achievements:'[]', publications:'[]', languages:'[]', volunteering:'[]', links:'{}' })
   const [publicName, setPublicName] = useState('')
 
   const load = async () => {
@@ -171,7 +171,16 @@ function CandidatePortal({ user, onLogout }) {
       full_name: person.full_name || '', phone: person.phone || '', location: person.location || '',
       headline: person.headline || '', summary: person.summary || '',
       total_experience_years: person.total_experience_years ?? '',
-      skills: (person.skills || []).join(', ')
+      skills: (person.skills || []).join(', '),
+      experience: JSON.stringify(person.experience || [], null, 2),
+      education: JSON.stringify(person.education || [], null, 2),
+      projects: JSON.stringify(person.projects || [], null, 2),
+      certifications: JSON.stringify(person.certifications || [], null, 2),
+      achievements: JSON.stringify(person.achievements || [], null, 2),
+      publications: JSON.stringify(person.publications || [], null, 2),
+      languages: JSON.stringify(person.languages || [], null, 2),
+      volunteering: JSON.stringify(person.volunteering || [], null, 2),
+      links: JSON.stringify(person.links || {}, null, 2)
     })
   }
   useEffect(() => { load().catch(err => setError(err.message || 'Could not load your candidate workspace.')) }, [])
@@ -180,8 +189,18 @@ function CandidatePortal({ user, onLogout }) {
     event.preventDefault()
     setBusy(true); setMessage(''); setError('')
     try {
-      const payload = { ...edit, total_experience_years: edit.total_experience_years === '' ? null : Number(edit.total_experience_years), skills: edit.skills.split(',').map(value => value.trim()).filter(Boolean) }
-      delete payload.skills.split
+      const parseArray = field => { const value = JSON.parse(edit[field] || '[]'); if (!Array.isArray(value)) throw new Error(`${field} must be a JSON array.`); return value }
+      const links = JSON.parse(edit.links || '{}')
+      if (!links || Array.isArray(links) || typeof links !== 'object') throw new Error('Links must be a JSON object.')
+      const payload = {
+        full_name: edit.full_name, phone: edit.phone, location: edit.location,
+        headline: edit.headline, summary: edit.summary,
+        total_experience_years: edit.total_experience_years === '' ? null : Number(edit.total_experience_years),
+        skills: edit.skills.split(',').map(value => value.trim()).filter(Boolean), links,
+        experience: parseArray('experience'), education: parseArray('education'), projects: parseArray('projects'),
+        certifications: parseArray('certifications'), achievements: parseArray('achievements'),
+        publications: parseArray('publications'), languages: parseArray('languages'), volunteering: parseArray('volunteering')
+      }
       await request('/api/candidate/me', json('PATCH', payload))
       await load()
       setMessage('Profile updated.')
@@ -236,6 +255,8 @@ function CandidatePortal({ user, onLogout }) {
       </div>}
       {person && tab === 'profile' && <form className="portal-edit-form" onSubmit={saveProfile}><div className="portal-section-title"><h2>Your professional profile</h2><p>Keep your details accurate. Changes are visible to authorized recruitment staff.</p></div><div className="portal-form-grid">
         <label>Full name<input value={edit.full_name} onChange={e=>setEdit({...edit,full_name:e.target.value})}/></label><label>Phone<input value={edit.phone} onChange={e=>setEdit({...edit,phone:e.target.value})} placeholder="Optional"/></label><label>Location<input value={edit.location} onChange={e=>setEdit({...edit,location:e.target.value})}/></label><label>Professional headline<input value={edit.headline} onChange={e=>setEdit({...edit,headline:e.target.value})}/></label><label>Years of experience<input type="number" min="0" max="60" step="0.1" value={edit.total_experience_years} onChange={e=>setEdit({...edit,total_experience_years:e.target.value})}/></label><label>Skills, comma separated<input value={edit.skills} onChange={e=>setEdit({...edit,skills:e.target.value})} placeholder="Python, SQL, React"/></label><label className="portal-form-full">Professional summary<textarea rows="5" value={edit.summary} onChange={e=>setEdit({...edit,summary:e.target.value})}/></label>
+        {['experience','education','projects','certifications','achievements','publications','languages','volunteering'].map(field=><label className="portal-form-full" key={field}>{field.charAt(0).toUpperCase()+field.slice(1)} · JSON array<textarea rows="5" spellCheck="false" value={edit[field]} onChange={e=>setEdit({...edit,[field]:e.target.value})}/></label>)}
+        <label className="portal-form-full">Links · JSON object<textarea rows="3" spellCheck="false" value={edit.links} onChange={e=>setEdit({...edit,links:e.target.value})}/></label>
       </div><button className="portal-button portal-button-primary" disabled={busy}>Save profile <Check size={16}/></button></form>}
       {person && tab === 'resumes' && <section className="portal-data-section"><div className="portal-section-title"><h2>Your resumes</h2><p>Upload PDF or DOCX files. You can replace or delete versions at any time.</p></div><label className="portal-upload-zone"><UploadCloud size={23}/><strong>Upload a resume</strong><span>PDF or DOCX · Up to 15 MB</span><input type="file" accept=".pdf,.docx" onChange={upload} disabled={busy}/></label><div className="portal-document-list">{docs.map(doc=><article className="portal-document-row" key={doc.id}><FileText size={19}/><div><strong>{doc.original_filename}</strong><span>{Math.round(doc.file_size/1024)} KB · {doc.page_count} pages · Added {dateLabel(doc.created_at)}</span></div><button className="portal-icon-button" title="Download" onClick={()=>download(doc)}><Download size={15}/></button><button className="portal-icon-button portal-danger-icon" title="Delete" onClick={()=>removeResume(doc.id)}><X size={15}/></button></article>)}{!docs.length && <div className="portal-empty">You haven't uploaded a resume yet.</div>}</div></section>}
       {person && tab === 'applications' && <section className="portal-data-section"><div className="portal-section-title"><h2>Application activity</h2><p>Track the progress of every role you've applied for.</p></div><div className="portal-document-list">{applications.map(item=><article className="portal-application-row" key={item.id}><div><strong>{item.job_title}</strong><span>{item.department} · {item.location} · Applied {dateLabel(item.created_at)}</span></div><span className={`portal-stage stage-${item.stage}`}>{item.stage}</span></article>)}{!applications.length && <div className="portal-empty">No applications yet. Browse open roles to get started.</div>}</div></section>}
