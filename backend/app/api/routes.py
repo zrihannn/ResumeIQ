@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
-from app.core.security import auth_guard, require_roles
+from app.core.security import require_roles
 from app.db.session import get_db
 from app.models.entities import ActivityEvent, Application, Candidate, Interview, Job, MatchResult, ResumeDocument, User
 from app.schemas.dto import ApplicationCreate, ApplicationUpdate, CandidateUpdate, InterviewCreate, InterviewUpdate, JobCreate, JobUpdate
@@ -28,7 +28,7 @@ from app.services.serializers import activity_out, application_out, candidate_ou
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", dependencies=[Depends(auth_guard)])
+router = APIRouter(prefix="/api", dependencies=[Depends(require_roles("admin", "recruiter", "reviewer", "viewer"))])
 PIPELINE_STAGES = ["new", "screening", "interview", "offer", "hired", "rejected"]
 ALLOWED_DOWNLOAD_TYPES = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 
