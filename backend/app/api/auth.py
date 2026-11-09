@@ -50,7 +50,7 @@ class CandidateRegisterInput(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         value = value.strip().lower()
-        if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", value):
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
             raise ValueError("Enter a valid email address.")
         return value
 
