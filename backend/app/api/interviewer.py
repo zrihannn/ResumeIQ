@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session, joinedload
@@ -11,6 +12,7 @@ from app.core.security import require_roles
 from app.db.session import get_db
 from app.models.entities import Application, Candidate, Interview, User
 from app.services.serializers import candidate_out, document_out
+from app.services.resume_storage import read_resume
 
 router = APIRouter(prefix="/api/interviewer", tags=["Interviewer portal"], dependencies=[Depends(require_roles("interviewer"))])
 
@@ -95,3 +97,29 @@ def update_interview_review(
     db.commit()
     db.refresh(item)
     return _review_out(item)
+
+
+@router.get("/me/interviews/{interview_id}/resumes/{document_id}/download")
+def download_assigned_candidate_resume(
+    interview_id: int,
+    document_id: int,
+    user: User = Depends(require_roles("interviewer")),
+    db: Session = Depends(get_db),
+):
+    item = _interview_query(db).filter(Interview.id == interview_id).first()
+    if not item or not _is_assigned(item, user):
+        raise HTTPException(404, "Assigned interview not found.")
+    document = next((doc for doc in item.application.candidate.documents if doc.id == document_id), None)
+    if not document:
+        raise HTTPException(404, "Resume document not found.")
+    content = read_resume(document.stored_filename)
+    if content is None:
+        raise HTTPException(404, "The stored resume file is missing.")
+    import re
+    from pathlib import Path
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", Path(document.original_filename).name)[:180] or "resume"
+    return Response(
+        content=content,
+        media_type=document.content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
