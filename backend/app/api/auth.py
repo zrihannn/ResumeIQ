@@ -66,6 +66,14 @@ def me(user: User | None = Depends(auth_guard)):
     return {"authentication_enabled": True, "user": user_out(user)}
 
 
+@router.get("/users")
+def list_users(admin: User | None = Depends(require_admin), db: Session = Depends(get_db)):
+    if not settings.auth_enabled or admin is None:
+        raise HTTPException(403, "Administrator access is required.")
+    users = db.query(User).order_by(User.role.asc(), User.email.asc()).all()
+    return [user_out(user) for user in users]
+
+
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, admin: User | None = Depends(require_admin), db: Session = Depends(get_db)):
     if not settings.auth_enabled:
