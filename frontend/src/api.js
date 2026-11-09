@@ -23,6 +23,8 @@ const json = (method, body) => ({ method, body: JSON.stringify(body) })
 export const api = {
   authStatus: () => request('/auth/status'),
   me: () => request('/auth/me'),
+  users: () => request('/auth/users'),
+  createUser: (data) => request('/auth/users', json('POST', data)),
   login: async (email, password) => { const result = await request('/auth/login', json('POST', { email, password })); localStorage.setItem('resumeiq_access_token', result.access_token); return result },
   logout: () => localStorage.removeItem('resumeiq_access_token'),
   health: () => request('/health'),
