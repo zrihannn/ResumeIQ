@@ -5,6 +5,9 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.api.auth import router as auth_router
+from app.api.public import router as public_router
+from app.api.candidate import router as candidate_router
+from app.api.interviewer import router as interviewer_router
 from app.core.config import settings
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -80,4 +83,7 @@ def health(db: Session = Depends(get_db)):
 
 
 app.include_router(auth_router)
+app.include_router(public_router)
+app.include_router(candidate_router)
+app.include_router(interviewer_router)
 app.include_router(router)

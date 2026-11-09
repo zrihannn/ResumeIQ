@@ -9,6 +9,7 @@ import {
   Briefcase, SlidersHorizontal, ChevronUp, BrainCircuit, CheckCircle2
 } from 'lucide-react'
 import { api } from './api'
+import { PublicPortal, CandidatePortal, InterviewerPortal } from './Portals.jsx'
 
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard, group: 'Workspace' },
@@ -92,10 +93,14 @@ function App() {
             const session = await api.me()
             if (cancelled) return
             setAuth({ checking: false, enabled: true, required: false, user: session.user })
+            if (!['admin', 'recruiter', 'reviewer', 'viewer'].includes(session.user?.role)) {
+              setLoading(false)
+              return
+            }
           } catch {
             api.logout()
             if (cancelled) return
-            setAuth({ checking: false, enabled: true, required: true, user: null })
+            setAuth({ checking: false, enabled: true, required: false, user: null })
             setLoading(false)
             return
           }
@@ -112,15 +117,15 @@ function App() {
     }
     initialize()
     const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && !auth.required) {
+      if (document.visibilityState === 'visible' && (!auth.enabled || ['admin', 'recruiter', 'reviewer', 'viewer'].includes(auth.user?.role))) {
         setDate(new Date())
         refresh(true)
       }
     }, 30000)
-    const onFocus = () => { setDate(new Date()); if (!auth.required) refresh(true) }
+    const onFocus = () => { setDate(new Date()); if (!auth.enabled || ['admin', 'recruiter', 'reviewer', 'viewer'].includes(auth.user?.role)) refresh(true) }
     window.addEventListener('focus', onFocus)
     return () => { cancelled = true; window.clearInterval(interval); window.removeEventListener('focus', onFocus) }
-  }, [refresh, auth.required])
+  }, [refresh, auth.required, auth.enabled, auth.user?.role])
 
   const act = async (fn, successMessage) => {
     try {
@@ -178,20 +183,34 @@ function App() {
   const handleLogin = async (email, password) => {
     const result = await api.login(email, password)
     setAuth({ checking: false, enabled: true, required: false, user: result.user })
-    setLoading(true)
-    await refresh()
+    if (['admin', 'recruiter', 'reviewer', 'viewer'].includes(result.user.role)) {
+      setLoading(true)
+      await refresh()
+    } else {
+      setLoading(false)
+    }
+    return result
+  }
+  const handleRegister = async (displayName, email, password) => {
+    const result = await api.registerCandidate(displayName, email, password)
+    setAuth({ checking: false, enabled: true, required: false, user: result.user })
+    setLoading(false)
+    return result
   }
   const handleLogout = () => {
     api.logout()
-    setAuth({ checking: false, enabled: true, required: true, user: null })
+    setAuth({ checking: false, enabled: true, required: false, user: null })
     setLoading(false)
   }
 
   if (auth.checking) return <LoginLoading />
+  const role = auth.user?.role || 'admin'
+  if (auth.enabled && !auth.user) return <PublicPortal onLogin={handleLogin} onRegister={handleRegister} />
+  if (auth.enabled && role === 'candidate') return <CandidatePortal user={auth.user} onLogout={handleLogout} />
+  if (auth.enabled && role === 'interviewer') return <InterviewerPortal user={auth.user} onLogout={handleLogout} />
   if (auth.required) return <LoginScreen onLogin={handleLogin} />
 
   const pageTitle = NAV.find(item => item.id === page)?.label || 'Overview'
-  const role = auth.user?.role || 'admin'
   const canManageRoles = !auth.enabled || ['admin', 'recruiter'].includes(role)
   const canReviewWorkflow = !auth.enabled || ['admin', 'recruiter', 'reviewer'].includes(role)
   const canManageUsers = auth.enabled && role === 'admin'
@@ -489,7 +508,7 @@ function SettingsPage({ health, onRefresh, user }) {
     <PageHeading eyebrow="MANAGE / WORKSPACE" title="Workspace settings." description="Service health, document processing and access management." actions={<button className="button-secondary" onClick={onRefresh}><RefreshCw size={15}/> Check health</button>}/>
     <div className="settings-grid"><div className="panel settings-main"><div className="panel-heading"><div><div className="section-label">SYSTEM STATUS</div><h2>Services & connectivity</h2><p>Current status reported by the backend.</p></div><span className={`api-status ${health ? 'online' : 'offline'}`}><i/>{health ? 'Operational' : 'Unavailable'}</span></div><div className="service-row"><div className="service-icon"><Code2 size={18}/></div><div><strong>ResumeIQ API</strong><span>{health?.service || 'FastAPI service'}</span></div><b>{health?.status || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><Layers3 size={18}/></div><div><strong>Database</strong><span>Persistent candidate and workflow records</span></div><b>{health?.database || 'Unknown'}</b></div><div className="service-row"><div className="service-icon"><FileSearch size={18}/></div><div><strong>Resume parser</strong><span>PDF and DOCX document processing</span></div><b>Ready</b></div><div className="service-row"><div className="service-icon"><BrainCircuit size={18}/></div><div><strong>Matching engine</strong><span>Skills, text relevance, experience and education</span></div><b>Ready</b></div></div><div className="panel settings-side"><div className="section-label">DOCUMENT PROCESSING</div><h2>Parser boundaries</h2><p>Text-based PDFs and DOCX documents are supported. OCR is optional and requires Tesseract to be installed and enabled.</p><div className="setting-line"><span>Maximum upload</span><strong>Configured limit</strong></div><div className="setting-line"><span>Supported formats</span><strong>PDF · DOCX</strong></div><div className="setting-line"><span>OCR</span><strong>Optional</strong></div><div className="setting-line"><span>Field evidence</span><strong>Enabled</strong></div></div></div>
     {user?.role === 'admin' && <WorkspaceUsers/>}
-    <div className="panel security-note"><div className="security-icon"><ShieldCheck size={20}/></div><div><strong>Access and candidate privacy</strong><p>Viewer accounts can inspect candidate profiles, resume files, role requirements, applications, recruiter notes and interview feedback. They cannot create, edit or delete workspace records. Grant viewer access only to trusted people who are permitted to see this information.</p></div></div>
+    <div className="panel security-note"><div className="security-icon"><ShieldCheck size={20}/></div><div><strong>Access and candidate privacy</strong><p>Workspace viewer accounts can inspect candidate records, resume files, applications and interview feedback but cannot modify them. This is internal access, not public access. Grant it only to trusted people who are permitted to view sensitive recruitment information.</p></div></div>
   </>
 }
 
@@ -522,7 +541,7 @@ function WorkspaceUsers() {
       setError(err.message || 'Could not create the workspace account.')
     } finally { setBusy(false) }
   }
-  const roleLabel = role => ({ admin: 'Administrator', recruiter: 'Recruiter', reviewer: 'Reviewer', viewer: 'Viewer' }[role] || role)
+  const roleLabel = role => ({ admin: 'Administrator', recruiter: 'Recruiter', reviewer: 'Reviewer', interviewer: 'Interviewer', viewer: 'Viewer' }[role] || role)
   return <section className="panel workspace-users-panel">
     <div className="panel-heading"><div><div className="section-label">ACCESS / TEAM MEMBERS</div><h2>Workspace accounts</h2><p>Create accounts and assign the access level required for each person.</p></div><span className="result-count">{users.length} accounts</span></div>
     <div className="viewer-access-warning"><ShieldCheck size={17}/><div><strong>Viewer access is read-only</strong><p>Viewers can inspect roles, candidates, applications, interview schedules, recruiter notes and feedback. They cannot change records or manage accounts.</p></div></div>
@@ -530,7 +549,7 @@ function WorkspaceUsers() {
       <Field label="Display name"><input name="display_name" value={form.display_name} onChange={update} required minLength="2" maxLength="180" placeholder="e.g. Alex Morgan"/></Field>
       <Field label="Work email"><input type="email" name="email" value={form.email} onChange={update} required maxLength="254" placeholder="alex@company.com"/></Field>
       <Field label="Initial password"><input type="password" name="password" value={form.password} onChange={update} required minLength="12" maxLength="200" autoComplete="new-password" placeholder="At least 12 characters"/></Field>
-      <Field label="Access level"><select name="role" value={form.role} onChange={update}><option value="viewer">Viewer · Read-only</option><option value="reviewer">Reviewer · Application workflow</option><option value="recruiter">Recruiter · Workspace operations</option></select></Field>
+      <Field label="Access level"><select name="role" value={form.role} onChange={update}><option value="viewer">Viewer · Read-only</option><option value="reviewer">Reviewer · Application workflow</option><option value="interviewer">Interviewer · Assigned interviews</option><option value="recruiter">Recruiter · Workspace operations</option></select></Field>
       <div className="workspace-user-form-foot"><span>Share the initial password through a separate secure channel. Password recovery is not configured.</span><button className="button-primary" disabled={busy}>{busy ? 'Creating account...' : 'Create account'} <Plus size={15}/></button></div>
     </form>
     {error && <div className="inline-error"><CircleAlert size={15}/>{error}</div>}
