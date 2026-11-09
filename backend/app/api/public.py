@@ -163,21 +163,17 @@ def public_insights(db: Session = Depends(get_db)):
         .group_by(Job.status)
         .all()
     )
+    if db.bind and db.bind.dialect.name == "postgresql":
+        month_key = func.to_char(Application.created_at, "YYYY-MM")
+    else:
+        month_key = func.strftime("%Y-%m", Application.created_at)
     monthly_applications = (
-        db.query(func.strftime("%Y-%m", Application.created_at), func.count(Application.id))
-        .group_by(func.strftime("%Y-%m", Application.created_at))
-        .order_by(func.strftime("%Y-%m", Application.created_at))
+        db.query(month_key, func.count(Application.id))
+        .group_by(month_key)
+        .order_by(month_key)
         .limit(12)
         .all()
     )
-    if db.bind and db.bind.dialect.name == "postgresql":
-        monthly_applications = (
-            db.query(func.to_char(Application.created_at, "YYYY-MM"), func.count(Application.id))
-            .group_by(func.to_char(Application.created_at, "YYYY-MM"))
-            .order_by(func.to_char(Application.created_at, "YYYY-MM"))
-            .limit(12)
-            .all()
-        )
     return {
         "interview_types": [{"type": key, "count": value} for key, value in interview_types],
         "interview_statuses": [{"status": key, "count": value} for key, value in interview_statuses],
